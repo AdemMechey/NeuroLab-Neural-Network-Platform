@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NeuroLab — Neural Network Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+/* ─── Design Tokens ─────────────────────────────────── */
+:root {
+  --bg:       #080c14;
+  --surface:  #0f1624;
+  --card:     #141c2e;
+  --border:   #1e2d4a;
+  --accent:   #00e5ff;
+  --accent2:  #7c4dff;
+  --accent3:  #ff6b6b;
+  --success:  #00e676;
+  --text:     #e8eaf6;
+  --muted:    #546e8a;
+  --mono:     'Space Mono', monospace;
+  --sans:     'DM Sans', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Animated grid background ─────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Header ────────────────────────────────────────── */
+header {
+  position: relative; z-index: 10;
+  padding: 24px 40px;
+  display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,12,20,.8);
+  backdrop-filter: blur(12px);
+}
+
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 20px;
+  box-shadow: 0 0 20px rgba(0,229,255,.3);
+}
+
+header h1 {
+  font-family: var(--mono);
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+header p { color: var(--muted); font-size: .85rem; margin-left: auto; font-family: var(--mono); }
+
+/* ─── Layout ────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 73px);
+  position: relative; z-index: 1;
+}
+
+/* ─── Sidebar ───────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: .65rem;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* ─── Form Controls ─────────────────────────────────── */
+label {
+  display: block;
+  font-size: .8rem;
+  color: var(--muted);
+  margin-bottom: 5px;
+  font-family: var(--mono);
+}
+
+select, input[type=number], input[type=range], input[type=text] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: .9rem;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color .2s;
+}
+select:focus, input:focus { border-color: var(--accent); }
+
+.form-row { margin-bottom: 14px; }
+
+.range-row { display: flex; align-items: center; gap: 10px; }
+.range-row input[type=range] { flex: 1; padding: 0; accent-color: var(--accent); }
+.range-val {
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--accent);
+  min-width: 45px; text-align: right;
+}
+
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0;
+}
+.toggle-row span { font-size: .85rem; color: var(--text); }
+
+.toggle {
+  position: relative; width: 42px; height: 22px;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--border);
+  border-radius: 11px;
+  cursor: pointer; transition: .3s;
+}
+.toggle input:checked ~ .toggle-track { background: var(--accent2); }
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 3px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: .3s;
+}
+.toggle input:checked ~ .toggle-track::after { left: 23px; }
+
+/* ─── Upload Zone ───────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .3s;
+  position: relative;
+}
+.upload-zone:hover { border-color: var(--accent); background: rgba(0,229,255,.03); }
+.upload-zone.dragging { border-color: var(--accent); background: rgba(0,229,255,.07); }
+.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-icon { font-size: 2rem; margin-bottom: 8px; }
+.upload-zone p { font-size: .85rem; color: var(--muted); }
+.upload-zone .file-name { color: var(--accent); font-size: .8rem; margin-top: 6px; font-family: var(--mono); }
+
+/* ─── Layer Builder ─────────────────────────────────── */
+.layer-builder { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.layer-chip {
+  background: var(--bg);
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
+  font-family: var(--mono);
+  font-size: .75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: default;
+}
+.layer-chip .rm {
+  cursor: pointer; color: var(--accent3); font-size: 1rem; line-height: 1;
+}
+.add-layer-row { display: flex; gap: 8px; margin-top: 6px; }
+.add-layer-row input { flex: 1; }
+.btn-sm {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent2);
+  background: transparent;
+  color: var(--accent2);
+  font-family: var(--mono);
+  font-size: .75rem;
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.btn-sm:hover { background: var(--accent2); color: white; }
+
+/* ─── Train Button ──────────────────────────────────── */
+.btn-train {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: 10px;
+  color: #080c14;
+  font-family: var(--mono);
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all .3s;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+.btn-train:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,229,255,.3); }
+.btn-train:active { transform: translateY(0); }
+.btn-train.loading { opacity: .7; cursor: not-allowed; }
+
+/* ─── Main Panel ────────────────────────────────────── */
+.main {
+  padding: 28px;
+  display: flex; flex-direction: column; gap: 24px;
+  overflow-y: auto;
+}
+
+/* ─── Metrics Grid ──────────────────────────────────── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  transition: all .3s;
+  animation: popIn .4s ease;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.metric-card:hover { border-color: var(--accent); }
+.metric-card .val {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  display: block;
+}
+.metric-card .key {
+  font-size: .72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--mono);
+  margin-top: 4px;
+}
+
+/* ─── Charts ────────────────────────────────────────── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.chart-card h3 {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.plotly-chart { width: 100%; height: 260px; }
+
+/* ─── Confusion Matrix ───────────────────────────────── */
+.cm-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: .8rem;
+}
+.cm-table td, .cm-table th {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: center;
+}
+.cm-table th { color: var(--muted); background: var(--bg); }
+.cm-diag { color: var(--success); font-weight: 700; }
+.cm-off  { color: var(--accent3); }
+
+/* ─── Status / Log ──────────────────────────────────── */
+.status-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--muted);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.status-dot.ok  { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.status-dot.err { background: var(--accent3); box-shadow: 0 0 8px var(--accent3); }
+.status-dot.run { background: var(--accent); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* ─── Welcome State ─────────────────────────────────── */
+.welcome {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 60vh; gap: 16px; opacity: .5;
+}
+.welcome .big-icon { font-size: 4rem; }
+.welcome h2 { font-family: var(--mono); font-size: 1.2rem; }
+.welcome p  { font-size: .9rem; color: var(--muted); text-align: center; max-width: 340px; }
+
+/* ─── Responsive ────────────────────────────────────── */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🧠</div>
+  <div>
+    <h1>NEUROLAB</h1>
+    <div style="color:var(--muted);font-size:.75rem;font-family:var(--mono)">Neural Network Educational Platform</div>
+  </div>
+  <p>v1.0 // INTERACTIVE</p>
+</header>
+
+<div class="layout">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+
+    <!-- Upload -->
+    <div>
+      <div class="section-label">01 // Dataset</div>
+      <div class="card">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="csvFile" accept=".csv" onchange="handleFile(this)">
+          <div class="upload-icon">📂</div>
+          <p>Drop a CSV file or click to browse</p>
+          <p style="font-size:.75rem;margin-top:4px">No file? We'll use XOR demo data</p>
+          <div class="file-name" id="fileName"></div>
+        </div>
+        <div class="form-row" style="margin-top:12px">
+          <label>Target Column</label>
+          <select id="targetCol"><option value="">auto-detect (last column)</option></select>
+        </div>
+        <div class="form-row">
+          <label>Problem Type</label>
+          <select id="problemType" onchange="updateUI()">
+            <option value="binary">Binary Classification</option>
+            <option value="multiclass">Multi-Class Classification</option>
+            <option value="regression">Regression</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Test Split</label>
+          <div class="range-row">
+            <input type="range" id="testSize" min="10" max="40" value="20"
+              oninput="document.getElementById('testSizeVal').textContent = this.value+'%'">
+            <span class="range-val" id="testSizeVal">20%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model -->
+    <div>
+      <div class="section-label">02 // Model</div>
+      <div class="card">
+        <div class="form-row">
+          <label>Model Type</label>
+          <select id="modelType" onchange="updateUI()">
+            <option value="mlp">Multi-Layer Perceptron (MLP)</option>
+            <option value="perceptron">Historical Perceptron</option>
+          </select>
+        </div>
+
+        <div id="mlpOptions">
+          <div class="form-row">
+            <label>Hidden Layers (neurons per layer)</label>
+            <div class="layer-builder" id="layerChips"></div>
+            <div class="add-layer-row">
+              <input type="number" id="layerInput" value="8" min="1" max="512" placeholder="neurons">
+              <button class="btn-sm" onclick="addLayer()">+ Add Layer</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Hidden Activation</label>
+            <select id="activation">
+              <option value="relu">ReLU</option>
+              <option value="sigmoid">Sigmoid</option>
+              <option value="tanh">Tanh</option>
+            </select>
+          </div>
+
+          <div class="form-row" id="outActRow">
+            <label>Output Activation</label>
+            <select id="outActivation">
+              <option value="sigmoid">Sigmoid (binary)</option>
+              <option value="softmax">Softmax (multi-class)</option>
+              <option value="relu">Linear/ReLU (regression)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training -->
+    <div>
+      <div class="section-label">03 // Training</div>
+      <div class="card">
+        <div class="form-row">
+          <label>Learning Rate</label>
+          <div class="range-row">
+            <input type="range" id="lr" min="1" max="100" value="10"
+              oninput="document.getElementById('lrVal').textContent = '0.0'+this.value">
+            <span class="range-val" id="lrVal">0.010</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Epochs</label>
+          <div class="range-row">
+            <input type="range" id="epochs" min="10" max="1000" value="150"
+              oninput="document.getElementById('epochsVal').textContent = this.value">
+            <span class="range-val" id="epochsVal">150</span>
+          </div>
+        </div>
+
+        <div id="regularizationOptions">
+          <div class="form-row">
+            <label>Loss Function</label>
+            <select id="lossFn">
+              <option value="binary_cross_entropy">Binary Cross-Entropy</option>
+              <option value="categorical_cross_entropy">Categorical Cross-Entropy</option>
+              <option value="mse">MSE</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>L2 Regularization (λ)</label>
+            <div class="range-row">
+              <input type="range" id="l2" min="0" max="100" value="0"
+                oninput="document.getElementById('l2Val').textContent = (this.value/1000).toFixed(3)">
+              <span class="range-val" id="l2Val">0.000</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Dropout Rate</label>
+            <div class="range-row">
+              <input type="range" id="dropout" min="0" max="70" value="0"
+                oninput="document.getElementById('dropoutVal').textContent = this.value+'%'">
+              <span class="range-val" id="dropoutVal">0%</span>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <span>Early Stopping</span>
+            <label class="toggle">
+              <input type="checkbox" id="earlyStopping">
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-train" id="trainBtn" onclick="train()">▶ TRAIN MODEL</button>
+
+  </aside>
+
+  <!-- ═══════════ MAIN PANEL ═══════════ -->
+  <main class="main">
+
+    <div id="statusBar" class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusMsg">Configure your model on the left, then press TRAIN.</span>
+    </div>
+
+    <!-- Welcome state -->
+    <div class="welcome" id="welcome">
+      <div class="big-icon">🔬</div>
+      <h2>READY TO EXPERIMENT</h2>
+      <p>Upload a dataset, configure your neural network, and press Train to see the learning process in action.</p>
+    </div>
+
+    <!-- Results (hidden until trained) -->
+    <div id="results" style="display:none">
+
+      <!-- Metrics -->
+      <div>
+        <div class="section-label">EVALUATION METRICS</div>
+        <div class="metrics-grid" id="metricsGrid"></div>
+      </div>
+
+      <!-- Charts -->
+      <div>
+        <div class="section-label">TRAINING CURVES</div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3>Loss vs Epochs</h3>
+            <div class="plotly-chart" id="lossChart"></div>
+          </div>
+          <div class="chart-card">
+            <h3>Accuracy vs Epochs</h3>
+            <div class="plotly-chart" id="accChart"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decision boundary + Confusion Matrix -->
+      <div class="charts-grid" id="extraCharts">
+        <div class="chart-card" id="dbCard" style="display:none">
+          <h3>Decision Boundary (2D)</h3>
+          <div class="plotly-chart" id="dbChart"></div>
+        </div>
+        <div class="chart-card" id="cmCard" style="display:none">
+          <h3>Confusion Matrix</h3>
+          <div id="cmContainer"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── State ─────────────────────────────────────────────────────────────
+let layers = [8, 4];   // default hidden layers
+
+// ─── Init ──────────────────────────────────────────────────────────────
+window.onload = () => {
+  renderLayerChips();
+  updateUI();
+
+  // Drag-and-drop
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragging'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragging'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragging');
+    const f = e.dataTransfer.files[0];
+    if (f) { document.getElementById('csvFile').files = e.dataTransfer.files; handleFile({ files: [f] }); }
+  });
+};
+
+// ─── File Handling ─────────────────────────────────────────────────────
+async function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('fileName').textContent = '📄 ' + file.name;
+
+  // Fetch columns
+  const fd = new FormData();
+  fd.append('dataset', file);
+  const res = await fetch('/columns', { method: 'POST', body: fd });
+  const data = await res.json();
+  const sel = document.getElementById('targetCol');
+  sel.innerHTML = '<option value="">auto-detect (last column)</option>';
+  data.columns.forEach(col => {
+    const opt = document.createElement('option');
+    opt.value = col; opt.textContent = col;
+    sel.appendChild(opt);
+  });
+}
+
+// ─── Layer Builder ─────────────────────────────────────────────────────
+function renderLayerChips() {
+  const container = document.getElementById('layerChips');
+  container.innerHTML = '';
+  layers.forEach((n, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'layer-chip';
+    chip.innerHTML = `L${i+1}: ${n} <span class="rm" onclick="removeLayer(${i})">×</span>`;
+    container.appendChild(chip);
+  });
+}
+
+function addLayer() {
+  const v = parseInt(document.getElementById('layerInput').value);
+  if (v >= 1 && v <= 512) { layers.push(v); renderLayerChips(); }
+}
+
+function removeLayer(i) {
+  layers.splice(i, 1);
+  renderLayerChips();
+}
+
+// ─── Dynamic UI ─────────────────────────────────────────────────────────
+function updateUI() {
+  const model = document.getElementById('modelType').value;
+  const problem = document.getElementById('problemType').value;
+
+  document.getElementById('mlpOptions').style.display = model === 'mlp' ? '' : 'none';
+  document.getElementById('regularizationOptions').style.display = model === 'mlp' ? '' : 'none';
+
+  const loss = document.getElementById('lossFn');
+  const outAct = document.getElementById('outActivation');
+
+  if (problem === 'binary') {
+    loss.value = 'binary_cross_entropy';
+    outAct.value = 'sigmoid';
+  } else if (problem === 'multiclass') {
+    loss.value = 'categorical_cross_entropy';
+    outAct.value = 'softmax';
+  } else {
+    loss.value = 'mse';
+    outAct.value = 'relu';
+  }
+}
+
+// ─── Training ──────────────────────────────────────────────────────────
+async function train() {
+  const btn = document.getElementById('trainBtn');
+  btn.classList.add('loading');
+  btn.textContent = '⏳ TRAINING...';
+  setStatus('run', 'Training in progress…');
+
+  const fd = new FormData();
+  const file = document.getElementById('csvFile').files[0];
+  if (file) fd.append('dataset', file);
+
+  const lrRaw = parseInt(document.getElementById('lr').value);
+  const config = {
+    problem_type:   document.getElementById('problemType').value,
+    model_type:     document.getElementById('modelType').value,
+    target_col:     document.getElementById('targetCol').value,
+    test_size:      parseInt(document.getElementById('testSize').value) / 100,
+    learning_rate:  lrRaw / 1000,
+    epochs:         parseInt(document.getElementById('epochs').value),
+    hidden_layers:  layers,
+    activation:     document.getElementById('activation').value,
+    out_activation: document.getElementById('outActivation').value,
+    loss:           document.getElementById('lossFn').value,
+    l2_lambda:      parseInt(document.getElementById('l2').value) / 1000,
+    early_stopping: document.getElementById('earlyStopping').checked,
+    dropout_rate:   parseInt(document.getElementById('dropout').value) / 100,
+  };
+  fd.append('config', JSON.stringify(config));
+
+  try {
+    const res = await fetch('/train', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error);
+
+    setStatus('ok', `✓ Trained on ${data.n_samples} samples · ${data.n_features} features`);
+    renderResults(data, config.problem_type);
+  } catch(e) {
+    setStatus('err', '✗ Error: ' + e.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.textContent = '▶ TRAIN MODEL';
+  }
+}
+
+// ─── Status Bar ────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + state;
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// ─── Render Results ─────────────────────────────────────────────────────
+function renderResults(data, problemType) {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('results').style.display = '';
+
+  renderMetrics(data.metrics, problemType);
+  renderCharts(data.history, problemType);
+  if (data.decision_boundary) renderDecisionBoundary(data.decision_boundary);
+  if (data.metrics.confusion_matrix) renderConfusionMatrix(data.metrics.confusion_matrix);
+}
+
+function renderMetrics(metrics, problemType) {
+  const grid = document.getElementById('metricsGrid');
+  grid.innerHTML = '';
+
+  const fmt = v => typeof v === 'number' ? (v < 1 ? (v*100).toFixed(1)+'%' : v.toFixed(4)) : v;
+  const labels = {
+    accuracy: 'Accuracy', train_accuracy: 'Train Acc',
+    precision: 'Precision', recall: 'Recall', f1: 'F1 Score',
+    mse: 'MSE', rmse: 'RMSE', r2: 'R² Score',
+  };
+  const skip = ['confusion_matrix'];
+
+  Object.entries(metrics).forEach(([k, v]) => {
+    if (skip.includes(k) || typeof v === 'object') return;
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    card.innerHTML = `<span class="val">${fmt(v)}</span><div class="key">${labels[k] || k}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+const PLOT_LAYOUT = {
+  paper_bgcolor: 'transparent',
+  plot_bgcolor: 'transparent',
+  font: { color: '#546e8a', family: 'Space Mono', size: 10 },
+  margin: { t: 10, b: 40, l: 50, r: 10 },
+  xaxis: { gridcolor: '#1e2d4a', zerolinecolor: '#1e2d4a' },
+  yaxis: { gridcolor: '#1e2d4a', zerolinecolor: '#1e2d4a' },
+  legend: { bgcolor: 'transparent' },
+  showlegend: true,
+};
+
+function renderCharts(history, problemType) {
+  const epochs = Array.from({ length: history.loss.length }, (_, i) => i + 1);
+  const config = { responsive: true, displayModeBar: false };
+
+  // Loss chart
+  const lossTraces = [
+    { x: epochs, y: history.loss, name: 'Train Loss', line: { color: '#00e5ff', width: 2 }, mode: 'lines' },
+  ];
+  if (history.val_loss.length) {
+    lossTraces.push({ x: epochs, y: history.val_loss, name: 'Val Loss', line: { color: '#ff6b6b', width: 2, dash: 'dot' }, mode: 'lines' });
+  }
+  Plotly.newPlot('lossChart', lossTraces, PLOT_LAYOUT, config);
+
+  // Accuracy chart (not for regression)
+  if (problemType !== 'regression' && history.accuracy.length) {
+    const accTraces = [
+      { x: epochs, y: history.accuracy, name: 'Train Acc', line: { color: '#00e676', width: 2 }, mode: 'lines' },
+    ];
+    if (history.val_accuracy.length) {
+      accTraces.push({ x: epochs, y: history.val_accuracy, name: 'Val Acc', line: { color: '#7c4dff', width: 2, dash: 'dot' }, mode: 'lines' });
+    }
+    Plotly.newPlot('accChart', accTraces, { ...PLOT_LAYOUT, yaxis: { ...PLOT_LAYOUT.yaxis, range: [0, 1] } }, config);
+  }
+}
+
+function renderDecisionBoundary(db) {
+  document.getElementById('dbCard').style.display = '';
+  const heatmap = {
+    x: db.xx[0], y: db.yy.map(r => r[0]), z: db.zz,
+    type: 'heatmap',
+    colorscale: [['0', 'rgba(0,229,255,0.2)'], ['1', 'rgba(124,77,255,0.2)']],
+    showscale: false,
+  };
+  const scatter = {
+    x: db.X_train.map(r => r[0]),
+    y: db.X_train.map(r => r[1]),
+    mode: 'markers',
+    marker: {
+      color: db.y_train,
+      colorscale: [['0','#00e5ff'],['1','#ff6b6b']],
+      size: 6, line: { width: 1, color: '#080c14' },
+    },
+    name: 'Train',
+  };
+  Plotly.newPlot('dbChart', [heatmap, scatter], PLOT_LAYOUT, { responsive: true, displayModeBar: false });
+}
+
+function renderConfusionMatrix(cm) {
+  document.getElementById('cmCard').style.display = '';
+  const n = cm.length;
+  let html = '<table class="cm-table"><tr><th></th>';
+  for (let j = 0; j < n; j++) html += `<th>Pred ${j}</th>`;
+  html += '</tr>';
+  cm.forEach((row, i) => {
+    html += `<tr><th>True ${i}</th>`;
+    row.forEach((v, j) => {
+      html += `<td class="${i===j ? 'cm-diag' : 'cm-off'}">${v}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  document.getElementById('cmContainer').innerHTML = html;
+}
+</script>
+</body>
+</html>
